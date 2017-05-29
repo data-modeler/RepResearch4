@@ -1,0 +1,85 @@
+---
+title: "Most Devastating Natural Events"
+output: 
+  html_document: 
+    keep_md: true
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
+```
+
+
+## Abstract
+
+The National Oceanic and Atmospheric Administration (NOAA) documents and tracks storm data, unusual weather patterns, and other significant weather events. The purpose of this document is to analyze the data to identify the most damaging storm or weather event types. After a top-level analysis of the data, tornados have caused more economic damage and contributed to more human casualties than any other event type.
+
+## Data Analysis
+
+First we will read the data file downloaded from NOAA, and then inspect the data that we have.
+
+```{r}
+Storm <- read.csv("StormData.csv.bz2")
+str(Storm)
+```
+
+For the purpose of identifying the most damaging weather event (EVTYPE), I see there are variables in the raw data for injuries, fatalities, crop damage, and property damage. 
+
+### Data Transformations  
+We can combine injuries and fatalities to produce a variable for total casualties, and crop damage plus property damage will produce total economic impact.
+```{r}
+Storm$CASUALTIES <- Storm$FATALITIES + Storm$INJURIES
+Storm$ECONDMG <- Storm$PROPDMG + Storm$CROPDMG
+```
+
+## Results
+
+For plotting the effect variables against the event type, we'll need to load some packages:
+```{r echo=FALSE}
+library(ggplot2)
+library(scales)
+```
+Also note that because there are 995 different types of events in the EVTYPE variable, I only want to report on the top most damaging events.
+
+
+```{r fig.cap="*Tornados cause the most economic damage.*"}
+econ.sum <- aggregate(Storm$ECONDMG, 
+                      by=list(Storm$EVTYPE), 
+                      FUN=sum, na.rm=T)
+econ.sum <- econ.sum[order(econ.sum$x,decreasing = TRUE),]
+econ.sum$x <- econ.sum$x / 1000
+econ.sum$Group.1 <- factor(econ.sum$Group.1, levels = econ.sum$Group.1[order(econ.sum$x, decreasing = TRUE)])
+
+qplot(Group.1, data=econ.sum[1:10,], 
+      geom="bar", weight=x, fill=I("darkblue")) + 
+    ggtitle("Top 10 Most Economically Damaging Event Types") +
+    xlab("Event Type") +
+    theme(axis.text.x=element_text(angle=45,hjust=1)) +
+    scale_y_continuous("Economic Damage in USD",
+                       label=dollar_format(prefix="$",suffix="K"))
+```
+
+Over the course of the data collection, tornados have caused $3.3 million in damages to crops and property. This is more than double the next most devastating event, flash floods, causing $1.6 million in damages.  
+
+```{r fig.cap="*Tornados caused the most harm to humans.*"}
+casl.sum <- aggregate(Storm$CASUALTIES, 
+                      by=list(Storm$EVTYPE), 
+                      FUN=sum, na.rm=T)
+casl.sum <- casl.sum[order(casl.sum$x,decreasing = TRUE),]
+casl.sum$x <- casl.sum$x / 1000
+casl.sum$Group.1 <- factor(casl.sum$Group.1, levels=casl.sum$Group.1[order(casl.sum$x,decreasing = TRUE)])
+qplot(Group.1, data=casl.sum[1:10,],
+      geom="bar", weight=x, fill=I("darkblue")) + 
+    ggtitle("Top 10 Most Harmful Event Types") +
+    xlab("Event Type") +
+    theme(axis.text.x=element_text(angle=45,hjust=1)) +
+    scale_y_continuous("Total Number of Casualties",
+                       label=dollar_format(prefix="",suffix="K"))
+
+```
+
+When it comes to human casualties, tornados again are the most devasting, having caused 97,000 casualties during the course of data collection. The next most harmful weather pattern is excessive heat, causing just over 8,000 casualties.  
+
+## Conclusion  
+When looking at events at a top level, tornados are the most devastating in terms of economic damage and human casualties. Of course, these metrics could be influenced by the number of times the event occurs in addition to the danger posed by the event. Future analyses could focus on expected damage from a single event to determine which single event could be most devastating. Certainly tornados would make the list, but perhaps hurricanes would prove to be more dangerous.
